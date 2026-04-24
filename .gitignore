@@ -32,3 +32,6 @@ pilot-db-writer.py
 # Build artifacts
 dist/
 build/
+ai-security-poc
+ai-security-server
+*.exe

@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Security Platform</title>
+<style>
+:root {
+  --bg:#060d1a; --surface:#0f172a; --surface2:#1e293b;
+  --border:#1e3a5f; --text:#e2e8f0; --muted:#64748b;
+  --blue:#3b82f6; --green:#22c55e; --red:#ef4444;
+  --amber:#f59e0b; --purple:#a855f7; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;font-size:13px;min-height:100vh}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px}
+.logo{color:var(--blue);font-size:15px;font-weight:bold;letter-spacing:1px}
+.subtitle{color:var(--muted);font-size:10px;margin-top:2px}
+.hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{background:#1e3a5f;color:var(--blue);border-radius:20px;padding:2px 10px;font-size:10px}
+.pill-red{background:#3d0f0f;color:#f87171}
+.tabs{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;overflow-x:auto}
+.tab{padding:10px 16px;cursor:pointer;color:var(--muted);font-size:12px;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.content{padding:20px}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* Cards */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px}
+.card-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.card-val{font-size:30px;font-weight:bold}
+.c-crit{color:var(--red)} .c-high{color:var(--amber)} .c-med{color:var(--blue)} .c-vuln{color:var(--purple)}
+
+/* Table */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:16px}
+.filter-bar{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.filter-label{color:var(--muted);font-size:10px}
+select,input,textarea{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;font-family:inherit}
+select:focus,input:focus,textarea:focus{outline:none;border-color:var(--blue)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--surface2);padding:8px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid #0a0f1a;font-size:12px}
+tr.fr{cursor:pointer;transition:background .1s}
+tr.fr:hover{background:#0f172a}
+tr.dr td{background:#040a14;padding:12px 16px}
+tr.dr pre{font-size:11px;white-space:pre-wrap;word-break:break-all;margin-top:4px;max-height:120px;overflow-y:auto}
+.empty{padding:32px;text-align:center;color:var(--muted)}
+
+/* Severity */
+.sev{border-radius:3px;padding:1px 6px;font-size:10px;font-weight:bold}
+.sev-Critical{background:#3d0f0f;color:#f87171;border:1px solid #7f1d1d}
+.sev-High{background:#3d2a0a;color:var(--amber);border:1px solid #78350f}
+.sev-Medium{background:#0f2d3d;color:#60a5fa;border:1px solid #1e40af}
+.sev-Low{background:#0f2d20;color:#4ade80;border:1px solid #166534}
+.sev-Info{background:#1e1e3d;color:var(--purple);border:1px solid #4c1d95}
+
+/* Status */
+.st{border-radius:3px;padding:1px 6px;font-size:10px;font-weight:bold}
+.st-VULNERABLE{background:#3d0f0f;color:#f87171;border:1px solid #7f1d1d}
+.st-RESISTANT{background:#0f2d20;color:#4ade80;border:1px solid #166534}
+.st-TIMEOUT{background:#2d2d0f;color:#fbbf24;border:1px solid #78350f}
+.st-MCP_INJECTED{background:#2d0a2d;color:#d946ef;border:1px solid #7e22ce}
+.st-PROTOCOL_ABUSE{background:#1a0d2e;color:#818cf8;border:1px solid #3730a3}
+.st-JAILBREAK_ATTEMPT{background:#3d1a0f;color:#fb923c;border:1px solid #9a3412}
+.st-REVEALS_INTERNALS{background:#2d1f06;color:var(--amber);border:1px solid #78350f}
+
+/* Buttons */
+.btn{background:var(--blue);color:#fff;border:none;border-radius:4px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn:hover{background:#2563eb}
+.btn:disabled{background:var(--muted);cursor:not-allowed}
+.btn-danger{background:#7f1d1d;color:#fca5a5}
+.btn-danger:hover{background:var(--red);color:#fff}
+.btn-sm{padding:3px 8px;font-size:11px}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:var(--muted)}
+
+/* Forms */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px;margin-bottom:16px}
+.panel-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg.full{grid-column:1/-1}
+label{font-size:10px;color:var(--muted)}
+input,select,textarea{width:100%}
+textarea{resize:vertical;min-height:60px}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;grid-column:1/-1}
+
+/* Scanner log */
+.scan-log{background:#020609;border:1px solid var(--border);border-radius:4px;padding:12px;height:340px;overflow-y:auto;font-size:11px;line-height:1.7}
+.ll{color:#475569}
+.ll.pass{color:var(--green)} .ll.fail{color:var(--red)}
+.ll.warn{color:var(--amber)} .ll.info{color:var(--cyan)}
+
+/* MITRE */
+.mitre-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px}
+.mc-id{color:var(--cyan);font-size:11px;font-weight:bold}
+.mc-tactic{color:var(--muted);font-size:10px;text-transform:uppercase;margin-bottom:6px}
+.mc-name{color:var(--text);font-size:13px;font-weight:bold;margin-bottom:4px}
+.mc-desc{color:var(--muted);font-size:11px;line-height:1.5}
+.mc-owasp{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.ot{background:#0f2d3d;color:var(--cyan);border-radius:3px;padding:1px 6px;font-size:10px}
+.mc-count{margin-top:8px;color:var(--amber);font-size:11px;font-weight:bold}
+
+/* Policy */
+.policy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:16px}
+.pc{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px}
+.pc-name{font-size:13px;font-weight:bold;margin-bottom:10px;color:var(--text)}
+.pr{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #0a0f1a;font-size:11px}
+.pr:last-of-type{border-bottom:none}
+.pk{color:var(--muted)} .pv{color:var(--text)}
+.pc-actions{display:flex;gap:6px;margin-top:10px;justify-content:flex-end}
+
+/* Toggle */
+.toggle-wrap{display:flex;align-items:center;gap:8px;margin-top:8px}
+.sw{width:36px;height:18px;background:var(--border);border-radius:9px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.sw.on{background:var(--blue)}
+.sw::after{content:'';position:absolute;width:14px;height:14px;background:#fff;border-radius:50%;top:2px;left:2px;transition:left .2s}
+.sw.on::after{left:20px}
+
+/* Asset chips */
+.chip{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:1px 7px;font-size:10px;color:var(--muted);margin:2px}
+
+/* Misc */
+.row-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.section-label{color:var(--muted);font-size:11px}
+
+@media(max-width:768px){
+  .cards{grid-template-columns:1fr 1fr}
+  .form-grid{grid-template-columns:1fr}
+  .fg.full{grid-column:unset}
+  .form-actions{grid-column:unset}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">AI SECURITY PLATFORM</div>
+    <div class="subtitle">OWASP LLM Top 10 &nbsp;·&nbsp; MITRE ATLAS &nbsp;·&nbsp; Agentic AI Controls &nbsp;·&nbsp; OWASP LLM01–10</div>
+  </div>
+  <div class="hdr-right">
+    <span class="pill" id="hdrTotal">— findings</span>
+    <span class="pill pill-red" id="hdrVuln">— vulnerable</span>
+    <span style="color:var(--muted);font-size:10px" id="hdrTime"></span>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('overview')">Overview</div>
+  <div class="tab" onclick="showTab('assets')">Assets</div>
+  <div class="tab" onclick="showTab('scanner')">Scanner</div>
+  <div class="tab" onclick="showTab('mitre')">MITRE Atlas</div>
+  <div class="tab" onclick="showTab('policies')">Policies</div>
+  <div class="tab" onclick="showTab('audit')">Audit Log</div>
+</div>
+
+<div class="content">
+
+<!-- ── OVERVIEW ─────────────────────────────────────────────────────── -->
+<div class="tab-panel active" id="tab-overview">
+  <div class="cards">
+    <div class="card"><div class="card-label">Total Findings</div><div class="card-val" id="sumTotal">—</div></div>
+    <div class="card"><div class="card-label">Critical</div><div class="card-val c-crit" id="sumCritical">—</div></div>
+    <div class="card"><div class="card-label">High</div><div class="card-val c-high" id="sumHigh">—</div></div>
+    <div class="card"><div class="card-label">Vulnerable</div><div class="card-val c-vuln" id="sumVuln">—</div></div>
+  </div>
+  <div class="table-wrap">
+    <div class="filter-bar">
+      <span class="filter-label">FILTER</span>
+      <select id="fcCat" onchange="renderFindings()">
+        <option value="">All Categories</option>
+        <option>MCP Protocol Abuse</option>
+        <option>Prompt Injection</option>
+        <option>Context Manipulation</option>
+        <option>Info Disclosure</option>
+        <option>Excessive Agency</option>
+        <option>RAG Poisoning</option>
+        <option>Model Extraction</option>
+      </select>
+      <select id="fcSev" onchange="renderFindings()">
+        <option value="">All Severities</option>
+        <option>Critical</option><option>High</option><option>Medium</option><option>Low</option>
+      </select>
+      <select id="fcStatus" onchange="renderFindings()">
+        <option value="">All Statuses</option>
+        <option>VULNERABLE</option><option>RESISTANT</option>
+        <option>MCP_INJECTED</option><option>PROTOCOL_ABUSE</option>
+        <option>REVEALS_INTERNALS</option><option>TIMEOUT</option>
+      </select>
+      <select id="fcRun" onchange="renderFindings()"><option value="">All Runs</option></select>
+      <span style="margin-left:auto;color:var(--muted);font-size:10px" id="findingCount"></span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Severity</th><th>Finding</th><th>Category</th>
+        <th>OWASP</th><th>MITRE</th><th>Status</th>
+        <th>Framework</th><th>Time</th>
+      </tr></thead>
+      <tbody id="findingsTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── ASSETS ────────────────────────────────────────────────────────── -->
+<div class="tab-panel" id="tab-assets">
+  <div class="row-hdr">
+    <div class="section-label">Registered AI Endpoints &amp; Models</div>
+    <button class="btn" onclick="toggleAssetForm()">+ Add Asset</button>
+  </div>
+  <div class="panel" id="assetForm" style="display:none">
+    <div class="panel-title">Register New AI Asset</div>
+    <div class="form-grid">
+      <div class="fg"><label>Name *</label><input id="af-name" placeholder="Production LLM Gateway"></div>
+      <div class="fg">
+        <label>Type</label>
+        <select id="af-type">
+          <option value="llm_endpoint">LLM Endpoint</option>
+          <option value="embedding_model">Embedding Model</option>
+          <option value="rag_pipeline">RAG Pipeline</option>
+          <option value="agent_framework">Agent Framework</option>
+          <option value="mcp_server">MCP Server</option>
+        </select>
+      </div>
+      <div class="fg"><label>Endpoint URL</label><input id="af-endpoint" placeholder="http://localhost:11434"></div>
+      <div class="fg"><label>Model Name</label><input id="af-model" placeholder="llama3.2:3b"></div>
+      <div class="fg"><label>Vendor</label><input id="af-vendor" placeholder="Ollama, OpenAI, Azure, AWS Bedrock…"></div>
+      <div class="fg"><label>API Key</label><input id="af-apikey" type="password" placeholder="sk-…"></div>
+      <div class="fg full"><label>Tags (comma-separated)</label><input id="af-tags" placeholder="production, gpt4, customer-facing, high-risk"></div>
+      <div class="fg full"><label>Description</label><textarea id="af-desc" placeholder="Purpose, owner, data classification, risk tier…"></textarea></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="toggleAssetForm()">Cancel</button>
+        <button class="btn" onclick="submitAsset()">Register Asset</button>
+      </div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Name</th><th>Type</th><th>Endpoint</th><th>Model</th>
+        <th>Vendor</th><th>Tags</th><th>Last Scanned</th><th></th>
+      </tr></thead>
+      <tbody id="assetsTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── SCANNER ───────────────────────────────────────────────────────── -->
+<div class="tab-panel" id="tab-scanner">
+  <div class="panel">
+    <div class="panel-title">Scan Configuration</div>
+    <div class="form-grid">
+      <div class="fg">
+        <label>Target Asset</label>
+        <select id="scanAsset"><option value="">— any / use env defaults —</option></select>
+      </div>
+      <div class="fg">
+        <label>Test Suite</label>
+        <select id="scanSuite">
+          <option value="all">Full Suite (Tests 01–11)</option>
+          <option value="quick">Quick (Health + MCP + RAG)</option>
+          <option value="11">Test 11 — Malicious Injection (31 vectors)</option>
+          <option value="01">Test 01 — Service Health</option>
+          <option value="02">Test 02 — MCP Smoke</option>
+          <option value="03">Test 03 — Prompt Injection</option>
+          <option value="05">Test 05 — Excessive Agency</option>
+          <option value="07">Test 07 — RAG Poisoning</option>
+          <option value="08">Test 08 — Model Extraction</option>
+        </select>
+      </div>
+      <div class="form-actions" style="align-items:center">
+        <button class="btn" id="btnRun" onclick="startScan()">&#9654; Run Scan</button>
+        <button class="btn btn-ghost" id="btnStop" onclick="stopScan()" style="display:none">&#9632; Stop</button>
+        <span id="scanStatus" style="color:var(--muted);font-size:11px"></span>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">
+      Live Output
+      <button class="btn btn-ghost btn-sm" onclick="clearLog()">Clear</button>
+    </div>
+    <div class="scan-log" id="scanLog">
+      <div class="ll" style="color:var(--muted)">Ready. Select asset and suite, then click Run Scan.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MITRE ATLAS ────────────────────────────────────────────────────── -->
+<div class="tab-panel" id="tab-mitre">
+  <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <select id="mitreFilter" onchange="renderMITRE()" style="width:200px">
+      <option value="">All Tactics</option>
+      <option value="ML Attack Staging">ML Attack Staging</option>
+      <option value="Defense Evasion">Defense Evasion</option>
+      <option value="Exfiltration">Exfiltration</option>
+      <option value="Impact">Impact</option>
+      <option value="Reconnaissance">Reconnaissance</option>
+      <option value="Initial Access">Initial Access</option>
+      <option value="Persistence">Persistence</option>
+    </select>
+    <span style="color:var(--muted);font-size:11px">MITRE ATLAS techniques relevant to LLM and AI systems</span>
+  </div>
+  <div class="mitre-grid" id="mitreGrid"></div>
+</div>
+
+<!-- ── POLICIES ──────────────────────────────────────────────────────── -->
+<div class="tab-panel" id="tab-policies">
+  <div class="row-hdr">
+    <div class="section-label">Agentic AI Control Policies</div>
+    <button class="btn" onclick="togglePolicyForm()">+ New Policy</button>
+  </div>
+  <div class="panel" id="policyForm" style="display:none">
+    <div class="panel-title">Create Agentic AI Policy</div>
+    <div class="form-grid">
+      <div class="fg full"><label>Policy Name *</label><input id="pf-name" placeholder="Strict Production Policy"></div>
+      <div class="fg"><label>Allowed Tools (JSON array)</label><input id="pf-allowed" placeholder='["search","summarize"]'></div>
+      <div class="fg"><label>Denied Tools (JSON array)</label><input id="pf-denied" placeholder='["exec","raw_request","filesystem"]'></div>
+      <div class="fg"><label>Rate Limit (requests / minute)</label><input id="pf-rate" type="number" value="60" min="1" max="10000"></div>
+      <div class="fg"><label>Max Tokens per Response</label><input id="pf-tokens" type="number" value="1000" min="100"></div>
+      <div class="fg">
+        <label>Human-in-the-Loop (HITL)</label>
+        <div class="toggle-wrap">
+          <div class="sw" id="pf-hitl-sw" onclick="toggle(this,'pf-hitl','pf-hitl-lbl')"></div>
+          <span id="pf-hitl-lbl" style="font-size:11px;color:var(--muted)">Disabled</span>
+          <input type="hidden" id="pf-hitl" value="false">
+        </div>
+      </div>
+      <div class="fg">
+        <label>Session Isolation</label>
+        <div class="toggle-wrap">
+          <div class="sw" id="pf-iso-sw" onclick="toggle(this,'pf-iso','pf-iso-lbl')"></div>
+          <span id="pf-iso-lbl" style="font-size:11px;color:var(--muted)">Disabled</span>
+          <input type="hidden" id="pf-iso" value="false">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="togglePolicyForm()">Cancel</button>
+        <button class="btn" onclick="submitPolicy()">Create Policy</button>
+      </div>
+    </div>
+  </div>
+  <div class="policy-grid" id="policyGrid"></div>
+</div>
+
+<!-- ── AUDIT LOG ─────────────────────────────────────────────────────── -->
+<div class="tab-panel" id="tab-audit">
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Timestamp</th><th>Asset</th><th>Action</th>
+        <th>Tool</th><th>Status</th><th>Approved By</th>
+      </tr></thead>
+      <tbody id="auditTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let allFindings=[], mitreCounts={}, mitreCatalog=[], assets=[], policies=[];
+let scanES=null;
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function showTab(name){
+  document.querySelectorAll('.tab,.tab-panel').forEach(el=>el.classList.remove('active'));
+  document.querySelector(`.tab[onclick="showTab('${name}')"]`).classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='assets') loadAssets();
+  if(name==='scanner') refreshScannerAssets();
+  if(name==='mitre'){ loadMITRE().then(renderMITRE); }
+  if(name==='policies') loadPolicies();
+  if(name==='audit') loadAudit();
+}
+
+// ── API ────────────────────────────────────────────────────────────────────
+async function GET(path){ const r=await fetch(path); if(!r.ok) throw new Error(r.statusText); return r.json(); }
+async function POST(path,body){ return fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+async function DEL(path){ return fetch(path,{method:'DELETE'}); }
+
+// ── Overview ───────────────────────────────────────────────────────────────
+async function loadOverview(){
+  try{
+    const [sum,findings,runs]=await Promise.all([
+      GET('/api/summary'), GET('/api/findings?limit=1000'), GET('/api/runs')
+    ]);
+    document.getElementById('sumTotal').textContent=sum.total??0;
+    document.getElementById('sumCritical').textContent=sum.critical??0;
+    document.getElementById('sumHigh').textContent=sum.high??0;
+    document.getElementById('sumVuln').textContent=sum.vulnerable??0;
+    document.getElementById('hdrTotal').textContent=(sum.total??0)+' findings';
+    document.getElementById('hdrVuln').textContent=(sum.vulnerable??0)+' vulnerable';
+    document.getElementById('hdrTime').textContent=new Date().toLocaleTimeString();
+    allFindings=findings||[];
+    const sel=document.getElementById('fcRun');
+    const cur=sel.value;
+    sel.innerHTML='<option value="">All Runs</option>';
+    (runs||[]).forEach(r=>{
+      const o=document.createElement('option');
+      o.value=r.run_id;
+      o.textContent=(r.label||r.run_id.slice(0,16))+' — '+(r.started_at||'').slice(0,10);
+      sel.appendChild(o);
+    });
+    if(cur) sel.value=cur;
+    renderFindings();
+  }catch(e){ console.error('loadOverview',e); }
+}
+
+function renderFindings(){
+  const cat=document.getElementById('fcCat').value;
+  const sev=document.getElementById('fcSev').value;
+  const sta=document.getElementById('fcStatus').value;
+  const run=document.getElementById('fcRun').value;
+  const filtered=allFindings.filter(f=>
+    (!cat||f.category===cat)&&
+    (!sev||f.severity===sev)&&
+    (!sta||f.status===sta)&&
+    (!run||f.run_id===run)
+  );
+  document.getElementById('findingCount').textContent=filtered.length+' of '+allFindings.length;
+  const tbody=document.getElementById('findingsTbody');
+  if(!filtered.length){
+    tbody.innerHTML='<tr><td colspan="8" class="empty">No findings match the current filters</td></tr>';
+    return;
+  }
+  tbody.innerHTML=filtered.map(f=>{
+    const stClass='st-'+((f.status||'').replace(/[^A-Z_a-z0-9]/g,''));
+    return `<tr class="fr" onclick="toggleDetail(this)">
+      <td><span class="sev sev-${esc(f.severity||'Low')}">${esc(f.severity||'—')}</span></td>
+      <td>${esc(f.finding_name)}</td>
+      <td style="color:var(--muted);font-size:11px">${esc(f.category||'—')}</td>
+      <td><span style="color:var(--cyan);font-size:10px">${esc(f.owasp_id||'—')}</span></td>
+      <td><span style="color:var(--purple);font-size:10px">${esc(f.mitre_id||'—')}</span></td>
+      <td><span class="st ${stClass}">${esc(f.status||'—')}</span></td>
+      <td style="color:var(--muted);font-size:11px">${esc(f.framework||'—')}</td>
+      <td style="color:var(--muted);font-size:10px">${(f.timestamp||'').slice(0,16)}</td>
+    </tr>
+    <tr class="dr" style="display:none"><td colspan="8">
+      ${f.payload?`<div style="font-size:10px;color:var(--muted)">PAYLOAD</div><pre style="color:#fbbf24">${esc(f.payload)}</pre>`:''}
+      ${f.response_preview?`<div style="font-size:10px;color:var(--muted);margin-top:8px">RESPONSE PREVIEW</div><pre style="color:#94a3b8">${esc(f.response_preview)}</pre>`:''}
+      ${f.remediation?`<div style="font-size:10px;color:var(--muted);margin-top:8px">REMEDIATION</div><div style="font-size:11px;color:#4ade80;margin-top:3px">${esc(f.remediation)}</div>`:''}
+    </td></tr>`;
+  }).join('');
+}
+
+function toggleDetail(tr){
+  const next=tr.nextElementSibling;
+  if(next&&next.classList.contains('dr'))
+    next.style.display=next.style.display==='none'?'':'none';
+}
+
+// ── Assets ─────────────────────────────────────────────────────────────────
+async function loadAssets(){
+  assets=await GET('/api/assets');
+  renderAssets();
+}
+
+function renderAssets(){
+  const tbody=document.getElementById('assetsTbody');
+  if(!assets.length){
+    tbody.innerHTML='<tr><td colspan="8" class="empty">No assets registered. Add your first AI endpoint above.</td></tr>';
+    return;
+  }
+  tbody.innerHTML=assets.map(a=>`
+    <tr>
+      <td><strong>${esc(a.name)}</strong></td>
+      <td><span class="chip">${esc(a.type)}</span></td>
+      <td style="font-size:10px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.endpoint||'—')}</td>
+      <td style="color:var(--cyan);font-size:11px">${esc(a.model||'—')}</td>
+      <td style="color:var(--muted)">${esc(a.vendor||'—')}</td>
+      <td>${parseTags(a.tags).map(t=>`<span class="chip">${esc(t)}</span>`).join('')||'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="color:var(--muted);font-size:10px">${a.last_scanned_at?a.last_scanned_at.slice(0,16):'Never'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteAsset('${a.id}')">Remove</button></td>
+    </tr>`).join('');
+}
+
+function parseTags(t){ try{ return JSON.parse(t||'[]'); }catch{ return t?t.split(',').map(s=>s.trim()):[];} }
+
+function toggleAssetForm(){
+  const f=document.getElementById('assetForm');
+  f.style.display=f.style.display==='none'?'':'none';
+}
+
+async function submitAsset(){
+  const name=document.getElementById('af-name').value.trim();
+  if(!name){ alert('Name is required'); return; }
+  const tagsRaw=document.getElementById('af-tags').value;
+  const tags=JSON.stringify(tagsRaw?tagsRaw.split(',').map(s=>s.trim()):[]);
+  const body={name,type:document.getElementById('af-type').value,
+    endpoint:document.getElementById('af-endpoint').value,
+    model:document.getElementById('af-model').value,
+    vendor:document.getElementById('af-vendor').value,
+    api_key:document.getElementById('af-apikey').value,
+    description:document.getElementById('af-desc').value,tags};
+  try{
+    const r=await POST('/api/assets',body);
+    if(!r.ok){ alert('Error: '+r.statusText); return; }
+    toggleAssetForm();
+    ['af-name','af-endpoint','af-model','af-vendor','af-apikey','af-desc','af-tags'].forEach(id=>document.getElementById(id).value='');
+    loadAssets();
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+async function deleteAsset(id){
+  if(!confirm('Remove this asset?')) return;
+  await DEL('/api/assets/'+id);
+  loadAssets();
+}
+
+// ── Scanner ────────────────────────────────────────────────────────────────
+async function refreshScannerAssets(){
+  const sel=document.getElementById('scanAsset');
+  const cur=sel.value;
+  try{
+    const data=await GET('/api/assets');
+    sel.innerHTML='<option value="">— any / use env defaults —</option>';
+    (data||[]).forEach(a=>{
+      const o=document.createElement('option');
+      o.value=a.id; o.textContent=a.name+' ('+a.type+')';
+      sel.appendChild(o);
+    });
+    if(cur) sel.value=cur;
+  }catch(e){}
+}
+
+function logLine(text,cls){
+  const log=document.getElementById('scanLog');
+  const d=document.createElement('div');
+  d.className='ll '+(cls||'');
+  d.textContent=text;
+  log.appendChild(d);
+  log.scrollTop=log.scrollHeight;
+}
+
+function clearLog(){ document.getElementById('scanLog').innerHTML=''; }
+
+function classifyLine(text){
+  if(/PASS|✓|passed|OK/.test(text)) return 'pass';
+  if(/FAIL|✗|failed|Error|error/.test(text)) return 'fail';
+  if(/WARN|SKIP|skip|warn/.test(text)) return 'warn';
+  if(/INFO|──|==|>>|START|RUN/.test(text)) return 'info';
+  return '';
+}
+
+function startScan(){
+  if(scanES){ scanES.close(); scanES=null; }
+  clearLog();
+  const assetID=document.getElementById('scanAsset').value;
+  const suite=document.getElementById('scanSuite').value;
+  const url='/api/scan/stream?asset_id='+encodeURIComponent(assetID)+'&tests='+encodeURIComponent(suite);
+  document.getElementById('btnRun').disabled=true;
+  document.getElementById('btnStop').style.display='';
+  document.getElementById('scanStatus').textContent='Running…';
+  logLine('['+new Date().toLocaleTimeString()+'] Scan started — suite: '+suite,'info');
+  scanES=new EventSource(url);
+  scanES.addEventListener('start',e=>{ const d=JSON.parse(e.data); logLine('[run_id: '+d.run_id+']','info'); });
+  scanES.addEventListener('log',e=>{ const t=JSON.parse(e.data); logLine(t,classifyLine(t)); });
+  scanES.addEventListener('done',()=>{
+    logLine('['+new Date().toLocaleTimeString()+'] Scan complete.','pass');
+    document.getElementById('btnRun').disabled=false;
+    document.getElementById('btnStop').style.display='none';
+    document.getElementById('scanStatus').textContent='Done';
+    scanES.close(); scanES=null;
+    loadOverview();
+  });
+  scanES.addEventListener('error',e=>{
+    if(e.data){ try{ const d=JSON.parse(e.data); logLine('[ERROR] '+d.message,'fail'); }catch{} }
+    document.getElementById('btnRun').disabled=false;
+    document.getElementById('btnStop').style.display='none';
+    document.getElementById('scanStatus').textContent='Error';
+    if(scanES){ scanES.close(); scanES=null; }
+  });
+  scanES.onerror=()=>{
+    if(scanES&&scanES.readyState===EventSource.CLOSED){
+      document.getElementById('btnRun').disabled=false;
+      document.getElementById('btnStop').style.display='none';
+    }
+  };
+}
+
+function stopScan(){
+  if(scanES){ scanES.close(); scanES=null; }
+  logLine('[stopped by user]','warn');
+  document.getElementById('btnRun').disabled=false;
+  document.getElementById('btnStop').style.display='none';
+  document.getElementById('scanStatus').textContent='Stopped';
+}
+
+// ── MITRE ──────────────────────────────────────────────────────────────────
+async function loadMITRE(){
+  [mitreCatalog,mitreCounts]=await Promise.all([GET('/api/mitre-catalog'),GET('/api/mitre-counts')]);
+}
+
+function renderMITRE(){
+  const tactic=document.getElementById('mitreFilter').value;
+  const filtered=mitreCatalog.filter(t=>!tactic||t.tactic===tactic);
+  const grid=document.getElementById('mitreGrid');
+  if(!filtered.length){ grid.innerHTML='<div class="empty">No techniques for this tactic</div>'; return; }
+  grid.innerHTML=filtered.map(t=>{
+    const cnt=mitreCounts[t.id]||0;
+    return `<div class="mc">
+      <div class="mc-id">${esc(t.id)}</div>
+      <div class="mc-tactic">${esc(t.tactic)}</div>
+      <div class="mc-name">${esc(t.name)}</div>
+      <div class="mc-desc">${esc(t.description)}</div>
+      <div class="mc-owasp">${(t.owasp_ids||[]).map(o=>`<span class="ot">${esc(o)}</span>`).join('')}</div>
+      ${cnt?`<div class="mc-count">&#9888; ${cnt} finding${cnt>1?'s':''} detected</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── Policies ───────────────────────────────────────────────────────────────
+async function loadPolicies(){
+  policies=await GET('/api/policies');
+  renderPolicies();
+}
+
+function renderPolicies(){
+  const grid=document.getElementById('policyGrid');
+  if(!policies.length){ grid.innerHTML='<div class="empty" style="padding:40px">No policies yet. Create your first agentic AI control policy.</div>'; return; }
+  grid.innerHTML=policies.map(p=>`
+    <div class="pc">
+      <div class="pc-name">${esc(p.name)}</div>
+      <div class="pr"><span class="pk">Rate Limit</span><span class="pv">${p.rate_limit_rpm} req/min</span></div>
+      <div class="pr"><span class="pk">Max Tokens</span><span class="pv">${p.max_tokens}</span></div>
+      <div class="pr"><span class="pk">Human-in-the-Loop</span><span class="pv" style="color:${p.require_hitl?'var(--green)':'var(--muted)'}">${p.require_hitl?'Enabled':'Disabled'}</span></div>
+      <div class="pr"><span class="pk">Session Isolation</span><span class="pv" style="color:${p.session_isolation?'var(--green)':'var(--muted)'}">${p.session_isolation?'Enabled':'Disabled'}</span></div>
+      <div class="pr"><span class="pk">Allowed Tools</span><span class="pv" style="font-size:10px;color:var(--green)">${esc(p.allowed_tools||'[]')}</span></div>
+      <div class="pr"><span class="pk">Denied Tools</span><span class="pv" style="font-size:10px;color:var(--red)">${esc(p.denied_tools||'[]')}</span></div>
+      <div class="pc-actions"><button class="btn btn-danger btn-sm" onclick="deletePolicy('${p.id}')">Delete</button></div>
+    </div>`).join('');
+}
+
+function togglePolicyForm(){
+  const f=document.getElementById('policyForm');
+  f.style.display=f.style.display==='none'?'':'none';
+}
+
+function toggle(sw,hidId,lblId){
+  sw.classList.toggle('on');
+  const on=sw.classList.contains('on');
+  document.getElementById(hidId).value=on?'true':'false';
+  document.getElementById(lblId).textContent=on?'Enabled':'Disabled';
+}
+
+async function submitPolicy(){
+  const name=document.getElementById('pf-name').value.trim();
+  if(!name){ alert('Name is required'); return; }
+  let allowed=document.getElementById('pf-allowed').value.trim()||'[]';
+  let denied=document.getElementById('pf-denied').value.trim()||'[]';
+  try{ JSON.parse(allowed); }catch{ alert('Allowed tools must be a valid JSON array e.g. ["search"]'); return; }
+  try{ JSON.parse(denied); }catch{ alert('Denied tools must be a valid JSON array e.g. ["exec"]'); return; }
+  const body={name,allowed_tools:allowed,denied_tools:denied,
+    rate_limit_rpm:parseInt(document.getElementById('pf-rate').value)||60,
+    max_tokens:parseInt(document.getElementById('pf-tokens').value)||1000,
+    require_hitl:document.getElementById('pf-hitl').value==='true',
+    session_isolation:document.getElementById('pf-iso').value==='true'};
+  const r=await POST('/api/policies',body);
+  if(!r.ok){ alert('Error: '+r.statusText); return; }
+  togglePolicyForm();
+  document.getElementById('pf-name').value='';
+  loadPolicies();
+}
+
+async function deletePolicy(id){
+  if(!confirm('Delete this policy?')) return;
+  await DEL('/api/policies/'+id);
+  loadPolicies();
+}
+
+// ── Audit ──────────────────────────────────────────────────────────────────
+async function loadAudit(){
+  try{
+    const entries=await GET('/api/audit');
+    const tbody=document.getElementById('auditTbody');
+    if(!entries.length){ tbody.innerHTML='<tr><td colspan="6" class="empty">No audit entries yet</td></tr>'; return; }
+    tbody.innerHTML=entries.map(e=>`
+      <tr>
+        <td style="color:var(--muted);font-size:10px">${(e.timestamp||'').slice(0,19)}</td>
+        <td style="font-size:11px">${esc(e.asset_id||'—')}</td>
+        <td>${esc(e.action)}</td>
+        <td style="color:var(--cyan);font-size:11px">${esc(e.tool_used||'—')}</td>
+        <td><span class="st st-${esc((e.status||'').replace(/[^A-Za-z_]/g,''))}">${esc(e.status||'—')}</span></td>
+        <td style="color:var(--muted)">${esc(e.approved_by||'—')}</td>
+      </tr>`).join('');
+  }catch(e){ console.error('loadAudit',e); }
+}
+
+// ── Util ───────────────────────────────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Init ───────────────────────────────────────────────────────────────────
+loadOverview();
+setInterval(loadOverview,30000);
+</script>
+</body>
+</html>

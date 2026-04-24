@@ -1,0 +1,24 @@
+# ── Stage 1: Build Go binary ───────────────────────────────────────────────
+FROM golang:1.22-alpine AS builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY *.go index.html ./
+RUN CGO_ENABLED=0 go build -o /ai-security-server .
+
+# ── Stage 2: Runtime (Python + Go binary) ─────────────────────────────────
+FROM python:3.11-slim
+RUN pip install --no-cache-dir requests chromadb-client 2>/dev/null || pip install --no-cache-dir requests
+WORKDIR /app
+
+COPY --from=builder /ai-security-server /app/ai-security-server
+COPY test/           /app/test/
+COPY findings.py     /app/findings.py
+COPY rag/            /app/rag/
+
+ENV DB_PATH=/app/data/findings.db
+ENV TEST_DIR=/app/test
+ENV PORT=9002
+
+EXPOSE 9002
+ENTRYPOINT ["/app/ai-security-server"]
