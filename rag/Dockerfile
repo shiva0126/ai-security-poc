@@ -1,0 +1,9 @@
+FROM python:3.11-slim
+WORKDIR /app
+RUN pip install --no-cache-dir \
+    chromadb==0.6.3 \
+    requests==2.31.0 \
+    fastapi==0.111.0 \
+    uvicorn==0.29.0 \
+    httpx==0.27.0
+COPY . .

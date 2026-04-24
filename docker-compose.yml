@@ -1,0 +1,265 @@
+services:
+  # ── Core LLM Runtime ─────────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+    entrypoint:
+      - /bin/sh
+      - -lc
+      - |
+        ollama pull "$${OLLAMA_MODEL:-llama3.2:3b}"
+        ollama pull nomic-embed-text
+        ollama pull mistral
+    restart: "no"
+
+  # ── AI Gateway — LiteLLM + CrowdStrike AIDR Guardrail ────────────────────────
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml:ro
+    environment:
+      CS_AIDR_TOKEN: ${CS_AIDR_TOKEN:-PLACEHOLDER_CROWDSTRIKE_TOKEN}
+      CS_AIDR_BASE_URL: ${CS_AIDR_BASE_URL:-https://api.aidr.crowdstrike.com}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-demo-master-key}
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--detailed_debug"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+
+  # ── Vector Store — ChromaDB ───────────────────────────────────────────────────
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    environment:
+      CHROMA_SERVER_AUTHN_CREDENTIALS: ${CHROMA_AUTH_TOKEN:-demo-chroma-token}
+      CHROMA_SERVER_AUTHN_PROVIDER: chromadb.auth.token_authn.TokenAuthenticationServerProvider
+      ANONYMIZED_TELEMETRY: "false"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # ── RAG Ingest Service (one-shot) ─────────────────────────────────────────────
+  rag-ingest:
+    build:
+      context: ./rag
+      dockerfile: Dockerfile
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    environment:
+      CHROMA_HOST: http://chromadb:8000
+      CHROMA_AUTH_TOKEN: ${CHROMA_AUTH_TOKEN:-demo-chroma-token}
+      OLLAMA_BASE_URL: http://ollama:11434
+      COLLECTION_NAME: ai_security_kb
+    command: ["python3", "ingest.py"]
+    volumes:
+      - ./rag:/app
+    working_dir: /app
+    restart: "no"
+
+  # ── RAG Query API ─────────────────────────────────────────────────────────────
+  rag-api:
+    build:
+      context: ./rag
+      dockerfile: Dockerfile
+    ports:
+      - "9001:9001"
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    environment:
+      CHROMA_HOST: http://chromadb:8000
+      CHROMA_AUTH_TOKEN: ${CHROMA_AUTH_TOKEN:-demo-chroma-token}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      COLLECTION_NAME: ai_security_kb
+    command: ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "9001"]
+    volumes:
+      - ./rag:/app
+    working_dir: /app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # ── POC Dashboard ────────────────────────────────────────────────────────────
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    ports:
+      - "9002:9002"
+    volumes:
+      - poc-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9002/api/summary')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # ── Test Runner (on-demand: docker compose run test-runner) ──────────────────
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.tests
+    depends_on:
+      ollama:
+        condition: service_healthy
+      mcp-server:
+        condition: service_started
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      CHROMA_URL: http://chromadb:8000
+      RAG_URL: http://rag-api:9001
+      MCP_URL: http://mcp-server:8765
+      LITELLM_URL: http://litellm:4000
+      WEBUI_URL: http://open-webui:8080
+      QUALYS_MOCK_MODE: ${QUALYS_MOCK_MODE:-1}
+      CHROMA_AUTH_TOKEN: ${CHROMA_AUTH_TOKEN:-demo-chroma-token}
+      PYTHONPATH: /app
+    volumes:
+      - poc-data:/app/data
+    profiles: ["testing"]
+    command: ["python3", "test/run_tests.py"]
+
+  # ── UI ────────────────────────────────────────────────────────────────────────
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    depends_on:
+      ollama:
+        condition: service_healthy
+    ports:
+      - "3001:8080"
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      ENABLE_SIGNUP: "false"
+      DEFAULT_MODELS: ${OLLAMA_MODEL:-llama3.2:3b}
+      WEBUI_AUTH: "false"
+    volumes:
+      - open-webui-data:/app/backend/data
+      - ./openwebui-custom/loader.js:/app/backend/open_webui/static/loader.js:ro
+      - ./openwebui-custom/custom.css:/app/backend/open_webui/static/custom.css:ro
+
+  # ── MCP Server — Qualys TotalAI ──────────────────────────────────────────────
+  mcp-server:
+    image: node:20-alpine
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    environment:
+      QUALYS_BASE_URL: ${QUALYS_BASE_URL:-https://gateway.qg1.apps.qualys.com}
+      QUALYS_USERNAME: ${QUALYS_USERNAME:-PLACEHOLDER_QUALYS_USERNAME}
+      QUALYS_PASSWORD: ${QUALYS_PASSWORD:-PLACEHOLDER_QUALYS_PASSWORD}
+      QUALYS_TIMEOUT_MS: ${QUALYS_TIMEOUT_MS:-30000}
+      QUALYS_MOCK_MODE: ${QUALYS_MOCK_MODE:-1}
+      MCP_TRANSPORT: http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8765
+    ports:
+      - "8765:8765"
+    command: ["node", "server.js"]
+
+  # ── One-Shot Agent Runners ────────────────────────────────────────────────────
+  agent-status:
+    image: node:20-alpine
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      AGENT_PROFILE: server-status
+      MCP_COMMAND: node
+      MCP_ARGS: server.js
+      QUALYS_BASE_URL: ${QUALYS_BASE_URL:-https://gateway.qg1.apps.qualys.com}
+      QUALYS_USERNAME: ${QUALYS_USERNAME:-}
+      QUALYS_PASSWORD: ${QUALYS_PASSWORD:-}
+      QUALYS_MOCK_MODE: ${QUALYS_MOCK_MODE:-1}
+    command: ["node", "agent-runner.js", "server-status"]
+    profiles: ["agents"]
+
+  agent-detections:
+    image: node:20-alpine
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      AGENT_PROFILE: detections-smoke
+      MCP_COMMAND: node
+      MCP_ARGS: server.js
+      QUALYS_BASE_URL: ${QUALYS_BASE_URL:-https://gateway.qg1.apps.qualys.com}
+      QUALYS_USERNAME: ${QUALYS_USERNAME:-}
+      QUALYS_PASSWORD: ${QUALYS_PASSWORD:-}
+      QUALYS_MOCK_MODE: ${QUALYS_MOCK_MODE:-1}
+    command: ["node", "agent-runner.js", "detections-smoke"]
+    profiles: ["agents"]
+
+  agent-scan:
+    image: node:20-alpine
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      AGENT_PROFILE: launch-scan
+      MCP_COMMAND: node
+      MCP_ARGS: server.js
+      QUALYS_BASE_URL: ${QUALYS_BASE_URL:-https://gateway.qg1.apps.qualys.com}
+      QUALYS_USERNAME: ${QUALYS_USERNAME:-}
+      QUALYS_PASSWORD: ${QUALYS_PASSWORD:-}
+      QUALYS_MOCK_MODE: ${QUALYS_MOCK_MODE:-1}
+    command: ["node", "agent-runner.js", "launch-scan"]
+    profiles: ["agents"]
+
+volumes:
+  ollama-data:
+  open-webui-data:
+  chroma-data:
+  poc-data:

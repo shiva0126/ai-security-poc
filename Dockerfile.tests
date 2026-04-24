@@ -1,0 +1,30 @@
+FROM python:3.11-slim
+# Install Node.js 20 alongside Python
+RUN apt-get update && apt-get install -y curl gnupg && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+RUN pip install --no-cache-dir \
+    requests==2.31.0 \
+    fastapi==0.111.0 \
+    uvicorn==0.29.0 \
+    chromadb==0.6.3 \
+    httpx==0.27.0
+
+COPY package.json package-lock.json* ./
+RUN npm install --omit=dev 2>/dev/null || true
+
+COPY . .
+
+# Default: point at Docker service names
+ENV OLLAMA_URL=http://ollama:11434
+ENV CHROMA_URL=http://chromadb:8000
+ENV RAG_URL=http://rag-api:9001
+ENV MCP_URL=http://mcp-server:8765
+ENV LITELLM_URL=http://litellm:4000
+ENV WEBUI_URL=http://open-webui:8080
+ENV PYTHONPATH=/app
+
+CMD ["python3", "test/run_tests.py"]

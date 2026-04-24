@@ -1,0 +1,34 @@
+# Credentials — never commit
+.env
+
+# Runtime data
+data/
+*.db
+*.sqlite
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Personal / unrelated project files
+worklogs/
+windows-browser-agent.ps1
+worklog-agent.js
+worklog-cron.sh
+worklog-dashboard.js
+worklog-db.py
+worklog-hook.sh
+pilot-chat-ui.js
+pilot-db-writer.py
+
+# Build artifacts
+dist/
+build/

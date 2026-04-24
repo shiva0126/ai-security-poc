@@ -1,0 +1,55 @@
+model_list:
+  # Base Ollama model — no guardrails (used for vulnerability demonstration)
+  - model_name: ollama-llama3-base
+    litellm_params:
+      model: ollama/llama3.2:3b
+      api_base: http://ollama:11434
+      stream: false
+
+  # Guarded model — routes through CrowdStrike AIDR
+  - model_name: ollama-llama3-guarded
+    litellm_params:
+      model: ollama/llama3.2:3b
+      api_base: http://ollama:11434
+      stream: false
+
+  # Mistral — hardened variant for before/after demo contrast
+  - model_name: ollama-mistral
+    litellm_params:
+      model: ollama/mistral
+      api_base: http://ollama:11434
+      stream: false
+
+  # RAG-augmented endpoint (routes to rag-api internally)
+  - model_name: ollama-rag
+    litellm_params:
+      model: ollama/llama3.2:3b
+      api_base: http://ollama:11434
+      stream: false
+
+guardrails:
+  # CrowdStrike AIDR — applied to guarded model only
+  # Credentials injected from environment variables
+  - guardrail_name: crowdstrike-aidr
+    litellm_params:
+      guardrail: crowdstrike_aidr
+      default_on: false
+      api_key: os.environ/CS_AIDR_TOKEN
+      api_base: os.environ/CS_AIDR_BASE_URL
+      mode: block            # options: log | redact | block
+      on_error_action: allow # fail-open during testing
+
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 2
+  timeout: 60
+
+litellm_settings:
+  drop_params: true
+  success_callback: []
+  failure_callback: []
+  cache: false
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_connection_pool_limit: 10

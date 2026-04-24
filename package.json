@@ -1,0 +1,26 @@
+{
+  "name": "qualys-totalai-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone MCP server for testing Qualys TotalAI APIs.",
+  "scripts": {
+    "start": "node server.js",
+    "start:http": "MCP_TRANSPORT=http MCP_HOST=0.0.0.0 MCP_PORT=8765 node server.js",
+    "smoke": "node smoke-test.js",
+    "agent:status": "node agent-runner.js server-status",
+    "agent:detections": "node agent-runner.js detections-smoke",
+    "agent:scan": "node agent-runner.js launch-scan",
+    "worklog:collect": "node worklog-agent.js collect",
+    "worklog:summarize": "node worklog-agent.js summarize",
+    "worklog:cycle": "node worklog-agent.js cycle",
+    "worklog:doctor": "node worklog-agent.js doctor",
+    "worklog:db:sync": "python3 worklog-db.py sync",
+    "worklog:db:overview": "python3 worklog-db.py overview",
+    "worklog:dashboard": "node worklog-dashboard.js",
+    "pilot:ui": "node pilot-chat-ui.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
